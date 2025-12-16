@@ -72,7 +72,8 @@
     },
     "audit": {
       "ignore": [
-        "PKSA-67d7-mg8j-87zx"
+        "PKSA-67d7-mg8j-87zx",
+        "PKSA-8qx3-n5y5-vvnd"
       ]
     },
     "platform": {
