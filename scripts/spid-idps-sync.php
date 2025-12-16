@@ -41,6 +41,7 @@ function pemFromB64(string $b64): string
 {
     $b64 = normalizeB64($b64);
     $wrapped = trim(chunk_split($b64, 64, "\n"));
+
     return "-----BEGIN CERTIFICATE-----\n" . $wrapped . "\n-----END CERTIFICATE-----\n";
 }
 
@@ -48,7 +49,7 @@ function parseCertValidToTimeT(string $b64): int
 {
     $pem = pemFromB64($b64);
     $x509 = openssl_x509_read($pem);
-    if ($x509 === false) {
+    if (false === $x509) {
         throw new RuntimeException('Invalid X509 certificate');
     }
 
@@ -64,7 +65,7 @@ function fetchUrl(string $url, int $timeoutSeconds = 25): string
 {
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
-        if ($ch === false) {
+        if (false === $ch) {
             throw new RuntimeException('Unable to init cURL');
         }
 
@@ -84,7 +85,7 @@ function fetchUrl(string $url, int $timeoutSeconds = 25): string
         $err = curl_error($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 
-        if ($body === false || $errNo !== 0) {
+        if (false === $body || 0 !== $errNo) {
             throw new RuntimeException('HTTP request failed: ' . ($err ?: ('curl_errno=' . $errNo)));
         }
         if ($status < 200 || $status >= 300) {
@@ -102,7 +103,7 @@ function fetchUrl(string $url, int $timeoutSeconds = 25): string
     ]);
 
     $body = @file_get_contents($url, false, $ctx);
-    if ($body === false) {
+    if (false === $body) {
         throw new RuntimeException('HTTP request failed (file_get_contents)');
     }
 
@@ -135,10 +136,10 @@ function loadRegistryMap(string $sourceUrl): array
         $entityId = $row['entity_id'] ?? null;
         $certs = $row['signing_certificate_x509'] ?? null;
 
-        if (!is_string($entityId) || $entityId === '') {
+        if (!is_string($entityId) || '' === $entityId) {
             continue;
         }
-        if (!is_array($certs) || $certs === []) {
+        if (!is_array($certs) || [] === $certs) {
             continue;
         }
 
@@ -148,11 +149,11 @@ function loadRegistryMap(string $sourceUrl): array
                 continue;
             }
             $c = normalizeB64($c);
-            if ($c !== '') {
+            if ('' !== $c) {
                 $clean[] = $c;
             }
         }
-        if ($clean === []) {
+        if ([] === $clean) {
             continue;
         }
 
@@ -160,13 +161,13 @@ function loadRegistryMap(string $sourceUrl): array
         $latestValidTo = null;
         foreach ($clean as $c) {
             $validTo = parseCertValidToTimeT($c);
-            if ($latestValidTo === null || $validTo > $latestValidTo) {
+            if (null === $latestValidTo || $validTo > $latestValidTo) {
                 $latestValidTo = $validTo;
                 $latestCert = $c;
             }
         }
 
-        if ($latestCert === null || $latestValidTo === null) {
+        if (null === $latestCert || null === $latestValidTo) {
             continue;
         }
 
@@ -189,6 +190,7 @@ function loadConfigIdps(string $configPath): array
     if (!is_array($cfg)) {
         throw new RuntimeException('Config file did not return an array');
     }
+
     return $cfg;
 }
 
@@ -220,7 +222,7 @@ function updateX509CertInContent(string $content, string $key, string $newCertB6
     $count = 0;
     $replacement = '$1' . $newCertB64 . '$3';
     $updatedBlock = preg_replace($pattern, $replacement, $block, 1, $count);
-    if (!is_string($updatedBlock) || $count !== 1) {
+    if (!is_string($updatedBlock) || 1 !== $count) {
         throw new RuntimeException("Unable to update x509cert for key '{$key}' (count={$count})");
     }
 
@@ -237,6 +239,7 @@ function main(array $argv): int
     $mode = $argv[1] ?? null;
     if (!in_array($mode, ['check', 'update'], true)) {
         stderr('Usage: php scripts/spid-idps-sync.php <check|update>');
+
         return 2;
     }
 
@@ -244,7 +247,7 @@ function main(array $argv): int
     $configPath = $repoRoot . '/config/spid-idps.php';
 
     $sourceUrl = getenv('SPID_REGISTRY_IDP_JSON_URL');
-    if (!is_string($sourceUrl) || $sourceUrl === '') {
+    if (!is_string($sourceUrl) || '' === $sourceUrl) {
         $sourceUrl = DEFAULT_SOURCE_URL;
     }
 
@@ -267,7 +270,7 @@ function main(array $argv): int
         }
 
         $entityId = $cfg['entityId'] ?? null;
-        if (!is_string($entityId) || $entityId === '' || !str_starts_with($entityId, 'http')) {
+        if (!is_string($entityId) || '' === $entityId || !str_starts_with($entityId, 'http')) {
             continue;
         }
 
@@ -295,7 +298,7 @@ function main(array $argv): int
     // Certificate check/update for active real IdPs.
     foreach ($activeConfigByKey as $key => $cfg) {
         $entityId = (string) ($cfg['entityId'] ?? '');
-        if ($entityId === '' || !isset($registry[$entityId])) {
+        if ('' === $entityId || !isset($registry[$entityId])) {
             // Structural checks already report this.
             continue;
         }
@@ -304,16 +307,16 @@ function main(array $argv): int
         $latestValidTo = (int) $registry[$entityId]['latest_validTo'];
 
         $current = normalizeB64((string) ($cfg['x509cert'] ?? ''));
-        if ($current === '' && $mode === 'check') {
+        if ('' === $current && 'check' === $mode) {
             $certIssues[] = "{$key}: missing x509cert in config";
             continue;
         }
 
         if ($current !== $latest) {
-            if ($mode === 'check') {
+            if ('check' === $mode) {
                 $currentValidTo = null;
                 try {
-                    if ($current !== '') {
+                    if ('' !== $current) {
                         $currentValidTo = parseCertValidToTimeT($current);
                     }
                 } catch (Throwable $e) {
@@ -321,7 +324,7 @@ function main(array $argv): int
                 }
 
                 $certIssues[] = sprintf(
-                    "%s: certificate mismatch (config not latest). config_notAfter=%s registry_notAfter=%s",
+                    '%s: certificate mismatch (config not latest). config_notAfter=%s registry_notAfter=%s',
                     $key,
                     is_int($currentValidTo) ? formatDate($currentValidTo) : 'unknown',
                     formatDate($latestValidTo)
@@ -332,26 +335,29 @@ function main(array $argv): int
         }
     }
 
-    if ($mode === 'check') {
+    if ('check' === $mode) {
         $issues = array_merge($structuralIssues, $certIssues);
-        if ($issues !== []) {
+        if ([] !== $issues) {
             stderr('SPID IdP registry sync check FAILED:');
             foreach ($issues as $e) {
                 stderr('- ' . $e);
             }
+
             return 1;
         }
 
         stdout('SPID IdP registry sync check OK.');
+
         return 0;
     }
 
     // update
-    if ($structuralIssues !== []) {
+    if ([] !== $structuralIssues) {
         stderr('No updates performed (fail-fast: structural issues found):');
         foreach ($structuralIssues as $e) {
             stderr('- ' . $e);
         }
+
         return 1;
     }
 
@@ -363,20 +369,22 @@ function main(array $argv): int
     $changed = 0;
     foreach ($updates as $key => $newCert) {
         $content = updateX509CertInContent($content, $key, $newCert);
-        $changed++;
+        ++$changed;
     }
 
-    if ($changed === 0) {
+    if (0 === $changed) {
         stdout('No changes needed.');
+
         return 0;
     }
 
     $ok = file_put_contents($configPath, $content);
-    if ($ok === false) {
+    if (false === $ok) {
         throw new RuntimeException('Unable to write config file');
     }
 
     stdout("Updated {$changed} IdP certificate(s) in config/spid-idps.php");
+
     return 0;
 }
 
@@ -384,5 +392,6 @@ try {
     exit(main($argv));
 } catch (Throwable $e) {
     stderr('ERROR: ' . $e->getMessage());
+
     return 1;
 }
