@@ -113,6 +113,9 @@ jobs:
       - xdebug
       - composer:
           laravel-version: << parameters.laravel-version >>
+      - run:
+          name: Validate SPID IdP certificates vs registry
+          command: composer spid:idps:check
       - structure-validation
       - php-cs-fixer
       - security
