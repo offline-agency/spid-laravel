@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+## [v2.1.0-beta] - 2025-12-18
+
+- Add SPID IdP certificate sync script and update config
 - Add Laravel 12 compatibility
 - Update Illuminate dependencies to support Laravel 9, 10, 11, and 12
 - Update development dependencies for Laravel 12 testing
